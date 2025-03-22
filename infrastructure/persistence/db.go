@@ -3,53 +3,35 @@ package persistence
 import (
 	"context"
 	"log"
-	"os"
-	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var (
-	clientInstance    *mongo.Client
-	clientInstanceErr error
-	mongoOnce         sync.Once
-)
+var client *mongo.Client
 
-// InitDB inicializa la conexión a MongoDB usando el patrón Singleton.
-func InitDB() error {
-	mongoOnce.Do(func() {
-		uri := os.Getenv("MONGODB_URI")
-		if uri == "" {
-			log.Println("MONGODB_URI no está definida, usando URI por defecto")
-			uri = "mongodb+srv://root:Elizabeth3004@cluster0.9rjse.mongodb.net/users"
-		}
+// InitDB inicializa la conexión a MongoDB
+func InitDB() (*mongo.Client, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-		clientOptions := options.Client().ApplyURI(uri)
-		client, err := mongo.NewClient(clientOptions)
-		if err != nil {
-			clientInstanceErr = err
-			return
-		}
+	clientOptions := options.Client().ApplyURI("mongodb+srv://Jutonito:CpgxsqUP44a3yw2a@cluster0.zx1vk.mongodb.net/")
+	newClient, err := mongo.Connect(ctx, clientOptions)
+	if err != nil {
+		log.Println("Error conectando a la base de datos:", err)
+		return nil, err
+	}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+	client = newClient
+	log.Println("Conexión a MongoDB exitosa.")
+	return client, nil
+}
 
-		err = client.Connect(ctx)
-		if err != nil {
-			clientInstanceErr = err
-			return
-		}
-
-		if err = client.Ping(ctx, nil); err != nil {
-			clientInstanceErr = err
-			return
-		}
-
-		clientInstance = client
-		log.Println("Conexión a MongoDB establecida exitosamente.")
-	})
-
-	return clientInstanceErr
+// GetDB retorna la base de datos 'Development'
+func GetDB() *mongo.Database {
+	if client == nil {
+		log.Fatal("La conexión a la base de datos no ha sido inicializada")
+	}
+	return client.Database("Development")
 }

@@ -24,7 +24,7 @@ func InitDB() (*mongo.Client, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		clientOptions := options.Client().ApplyURI("mongodb+srv://Jutonito:CpgxsqUP44a3yw2a@cluster0.zx1vk.mongodb.net/")
+		clientOptions := options.Client().ApplyURI("mongodb+srv://root:Elizabeth3004@cluster0.9rjse.mongodb.net/users")
 		client, err = mongo.Connect(ctx, clientOptions)
 		if err != nil {
 			log.Println("Error conectando a la base de datos:", err)

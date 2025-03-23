@@ -3,29 +3,37 @@ package persistence
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var client *mongo.Client
+var (
+	client     *mongo.Client
+	initOnce   sync.Once // Para garantizar que InitDB solo se ejecuta una vez
+	clientOnce sync.Once // Para cerrar la conexión una sola vez
+)
 
-// InitDB inicializa la conexión a MongoDB
+// InitDB inicializa la conexión a MongoDB de forma segura
 func InitDB() (*mongo.Client, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	var err error
 
-	clientOptions := options.Client().ApplyURI("mongodb+srv://Jutonito:CpgxsqUP44a3yw2a@cluster0.zx1vk.mongodb.net/")
-	newClient, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		log.Println("Error conectando a la base de datos:", err)
-		return nil, err
-	}
+	initOnce.Do(func() { // Garantiza que solo se ejecuta una vez
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	client = newClient
-	log.Println("Conexión a MongoDB exitosa.")
-	return client, nil
+		clientOptions := options.Client().ApplyURI("mongodb+srv://Jutonito:CpgxsqUP44a3yw2a@cluster0.zx1vk.mongodb.net/")
+		client, err = mongo.Connect(ctx, clientOptions)
+		if err != nil {
+			log.Println("Error conectando a la base de datos:", err)
+			return
+		}
+		log.Println("Conexión a MongoDB exitosa.")
+	})
+
+	return client, err
 }
 
 // GetDB retorna la base de datos 'Development'
@@ -34,4 +42,17 @@ func GetDB() *mongo.Database {
 		log.Fatal("La conexión a la base de datos no ha sido inicializada")
 	}
 	return client.Database("Development")
+}
+
+// CloseDB cierra la conexión con MongoDB cuando la aplicación termina
+func CloseDB() {
+	clientOnce.Do(func() {
+		if client != nil {
+			if err := client.Disconnect(context.Background()); err != nil {
+				log.Println("Error cerrando la conexión a MongoDB:", err)
+			} else {
+				log.Println("Conexión a MongoDB cerrada correctamente.")
+			}
+		}
+	})
 }
